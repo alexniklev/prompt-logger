@@ -1,0 +1,60 @@
+# .gitignore for PromptLogger
+# Covers .NET console app build artifacts and common IDE/OS files
+
+## Visual Studio / .NET
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+build/
+bin/
+obj/
+out/
+artifacts/
+
+## Rider
+.idea/
+
+## VS Code
+.vscode/
+
+## NuGet
+*.nupkg
+*.snupkg
+packages/
+project.lock.json
+project.fragment.lock.json
+
+## dotnet user-secrets
+secrets.json
+secrets.*
+
+## Logs and databases
+*.log
+*.sqlite
+
+## Environment files
+.env
+.env.*
+local.settings.json
+
+## OS generated files
+.DS_Store
+Thumbs.db
+
+## Misc
+*.pid
+*.seed
+
+# Ignore compiled files
+*.dll
+*.exe
+*.pdb
+
+# Keep track of these intentionally in repo (uncomment if you want them ignored)
+# !/README.md
