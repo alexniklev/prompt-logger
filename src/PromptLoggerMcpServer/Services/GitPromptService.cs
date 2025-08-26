@@ -1,6 +1,4 @@
-using System;
 using System.Diagnostics;
-using System.IO;
 
 namespace PromptLoggerMcpServer.Services
 {
@@ -12,52 +10,38 @@ namespace PromptLoggerMcpServer.Services
             if (string.IsNullOrWhiteSpace(promptText))
                 return PromptSaveResult.Fail("Prompt is empty");
 
-            // Determine working repo path (default: separate hidden folder, not the project repo)
-            var defaultRepoDir = Path.Combine(Directory.GetCurrentDirectory(), ".prompt-logger-repo");
-            var repoPath = EnvOr("REPO_PATH", defaultRepoDir);
-            var promptsFolder = EnvOr("PROMPTS_FOLDER", "prompts");
+            var repoPath = Environment.GetEnvironmentVariable("REPO_PATH");
+            var promptsFolder = Environment.GetEnvironmentVariable("PROMPTS_FOLDER");
             var authorName = Environment.GetEnvironmentVariable("GIT_AUTHOR_NAME");
             var authorEmail = Environment.GetEnvironmentVariable("GIT_AUTHOR_EMAIL");
-            // Allow PROMPT_REPO_URL as alias to GIT_REMOTE
-            var remote = Environment.GetEnvironmentVariable("PROMPT_REPO_URL") ?? Environment.GetEnvironmentVariable("GIT_REMOTE");
+            var remote = Environment.GetEnvironmentVariable("GIT_REMOTE");
             var pushFlag = Environment.GetEnvironmentVariable("GIT_PUSH");
             var push = !string.IsNullOrWhiteSpace(pushFlag) && (pushFlag.Equals("true", StringComparison.OrdinalIgnoreCase) || pushFlag == "1");
 
             try
             {
-                // 1. Ensure repository: clone if remote provided & repo not present; else init
-                if (!Directory.Exists(Path.Combine(repoPath, ".git")))
+                // 1. Ensure repository exists locally. Do NOT create or clone a repo here; caller must provide a valid local repo path.
+                if (!Directory.Exists(repoPath) || !Directory.Exists(Path.Combine(repoPath, ".git")))
                 {
-                    if (!Directory.Exists(repoPath))
-                        Directory.CreateDirectory(repoPath);
-
-                    // If directory is empty (or only contains system files) and remote set -> clone
-                    var dirEmpty = Directory.GetFileSystemEntries(repoPath).Length == 0;
-                    if (!string.IsNullOrWhiteSpace(remote) && dirEmpty)
-                    {
-                        // Clone into repoPath (git clone <remote> <path>)
-                        RunGit(Directory.GetCurrentDirectory(), $"clone {remote} \"{repoPath}\"");
-                    }
-
-                    if (!Directory.Exists(Path.Combine(repoPath, ".git")))
-                    {
-                        RunGit(repoPath, "init");
-                        if (!string.IsNullOrWhiteSpace(remote))
-                            RunGit(repoPath, $"remote add origin {remote}", ignoreErrors: true);
-                    }
+                    return PromptSaveResult.Fail($"No git repository found at REPO_PATH='{repoPath}'. Please clone or provide a local repo path.");
                 }
 
-                // 2. Optional per-repo user config (ignore failures)
+                // 2. Validate prompts folder setting
+                if (string.IsNullOrWhiteSpace(promptsFolder))
+                    return PromptSaveResult.Fail("PROMPTS_FOLDER environment variable is not set or is empty.");
+
+                // 3. Optional per-repo user config (ignore failures)
                 if (!string.IsNullOrWhiteSpace(authorName))
                     RunGit(repoPath, $"config user.name \"{authorName}\"", ignoreErrors: true);
                 if (!string.IsNullOrWhiteSpace(authorEmail))
                     RunGit(repoPath, $"config user.email \"{authorEmail}\"", ignoreErrors: true);
 
-                // 3. Ensure prompts directory
+                // 4. Check/create prompts folder inside the repo
                 var promptsDirFull = Path.Combine(repoPath, promptsFolder);
-                Directory.CreateDirectory(promptsDirFull);
+                if (!Directory.Exists(promptsDirFull))
+                    Directory.CreateDirectory(promptsDirFull);
 
-                // 4. Write file (unique timestamp name)
+                // 5. Write file (unique timestamp name)
                 var ts = DateTime.UtcNow.ToString("yyyyMMddHHmmssfff");
                 var fileName = $"prompt-{ts}.md";
                 var relPath = Path.Combine(promptsFolder, fileName).Replace('\\', '/');
@@ -65,17 +49,22 @@ namespace PromptLoggerMcpServer.Services
                 var content = $"""---\ncreated_at: {DateTime.UtcNow:O}\n---\n{promptText}\n""";
                 File.WriteAllText(fullPath, content);
 
-                // 5. Commit
+                // 6. Commit
                 RunGit(repoPath, $"add \"{relPath}\"");
                 RunGit(repoPath, $"commit -m \"Add prompt {fileName}\"");
                 var sha = RunGit(repoPath, "rev-parse HEAD", capture: true).stdout.Trim();
 
-                // 6. Optional push
+                // 7. Optional push
                 bool pushed = false;
-                if (push && !string.IsNullOrWhiteSpace(remote))
+                if (push)
                 {
-                    var pushRes = RunGit(repoPath, "push origin HEAD", capture: true, ignoreErrors: true);
-                    pushed = pushRes.exitCode == 0;
+                    if (string.IsNullOrWhiteSpace(remote))
+                    {
+                        // If push requested but no remote configured, return an error-like result but keep the commit local
+                        return PromptSaveResult.Fail("GIT_PUSH enabled but no GIT_REMOTE / PROMPT_REPO_URL configured.");
+                    }
+                    var (exitCode, stdout, stderr) = RunGit(repoPath, "push origin HEAD", capture: true, ignoreErrors: true);
+                    pushed = exitCode == 0;
                 }
 
                 return PromptSaveResult.Ok(relPath, sha, pushed);
@@ -84,12 +73,6 @@ namespace PromptLoggerMcpServer.Services
             {
                 return PromptSaveResult.Fail(ex.Message);
             }
-        }
-
-        private static string EnvOr(string key, string fallback)
-        {
-            var v = Environment.GetEnvironmentVariable(key);
-            return string.IsNullOrWhiteSpace(v) ? fallback : v;
         }
 
         private static (int exitCode, string stdout, string stderr) RunGit(string cwd, string args, bool capture = false, bool ignoreErrors = false)
