@@ -13,6 +13,7 @@ builder.Services
     .AddMcpServer()
     .WithStdioServerTransport()
     .WithTools<WeatherTool>()
+    .WithTools<PromptLoggerTool>()
     .WithTools<RandomNumberTools>();
 
 await builder.Build().RunAsync();
