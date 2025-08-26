@@ -4,11 +4,11 @@
       "commandName": "Project",
       "commandLineArgs": "--manual-save \"Test prompt one\"",
       "environmentVariables": {
-        "REPO_PATH": "D:\\\\Guthub\\\\MyPrompts",
+        "REPO_PATH": "D:\\Guthub\\MyPrompts",
         "GIT_REMOTE": "https://github.com/alexniklev/my-prompts.git",
         "GIT_PUSH": "true",
-        "GIT_AUTHOR_NAME": "aleks",
-        "GIT_AUTHOR_EMAIL": "aleksniklev@kongsbergdigital.com",
+        "GIT_AUTHOR_NAME": "aleksniklev",
+        "GIT_AUTHOR_EMAIL": "aleks.niklev@kongsbergdigital.com",
         "PROMPTS_FOLDER": "prompts"
       }
     }
