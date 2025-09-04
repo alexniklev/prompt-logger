@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 
 namespace PromptLoggerMcpServer.Services
 {
@@ -23,22 +24,60 @@ namespace PromptLoggerMcpServer.Services
                 Directory.CreateDirectory(promptsDirFull);
 
                 // 3. Write file
-                var fileName = $"prompt-{DateTime.UtcNow:yyyyMMddHHmmssfff}.md";
+                var fileName = CreateFileName(promptText);
                 var relPath = Path.Combine(promptsFolder, fileName).Replace('\\', '/');
                 var fullPath = Path.Combine(repoPath, relPath);
                 var content = $"---\ncreated_at: {DateTime.UtcNow:O}\n---\n\n{promptText}\n";
                 File.WriteAllText(fullPath, content);
 
                 // 4. Commit (minimal)
+                RunGit(repoPath, $"pull");
                 RunGit(repoPath, $"add \"{relPath}\"");
                 RunGit(repoPath, $"commit -m \"Add prompt {fileName}\"");
+                RunGit(repoPath, $"push");
 
-                return PromptSaveResult.Ok(relPath, "committed", false);
+                return PromptSaveResult.Ok(relPath, "committed", true);
             }
             catch (Exception ex)
             {
                 return PromptSaveResult.Fail(ex.Message);
             }
+        }
+
+        private static string CreateFileName(string promptText)
+        {
+            // timestamp - use filesystem-safe sortable UTC format without colons
+            var ts = DateTime.UtcNow.ToString("yyyyMMdd_HHmmssfff");
+
+            // short slug from first non-empty line
+            var firstLine = promptText.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                                      .FirstOrDefault() ?? string.Empty;
+            var slug = CreateSlug(firstLine, maxLength: 40);
+
+            var slugPart = string.IsNullOrEmpty(slug) ? string.Empty : $"-{slug}";
+
+            return $"prompt-{ts}-{slugPart}.md";
+        }
+
+        private static string CreateSlug(string input, int maxLength)
+        {
+            if (string.IsNullOrWhiteSpace(input))
+                return string.Empty;
+
+            // lower-case, replace whitespace with hyphen
+            var lowered = input.Trim().ToLowerInvariant();
+            var replaced = Regex.Replace(lowered, @"\s+", "-");
+
+            // remove invalid filename chars and keep a-z0-9-_ 
+            var sanitized = Regex.Replace(replaced, @"[^a-z0-9\-_]", string.Empty);
+
+            // collapse multiple hyphens
+            sanitized = Regex.Replace(sanitized, "-{2,}", "-").Trim('-');
+
+            if (sanitized.Length <= maxLength)
+                return sanitized;
+
+            return sanitized.Substring(0, maxLength).Trim('-');
         }
 
         private static void RunGit(string cwd, string args)
@@ -49,7 +88,7 @@ namespace PromptLoggerMcpServer.Services
                 UseShellExecute = false,
                 CreateNoWindow = true
             })!;
-            
+
             p.WaitForExit(10000); // 10 second timeout
             if (p.ExitCode != 0)
                 throw new Exception($"git {args} failed");
