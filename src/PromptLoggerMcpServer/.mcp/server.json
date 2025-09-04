@@ -4,7 +4,7 @@
   "packages": [
     {
       "registry_name": "nuget",
-      "name": "an.prompt-logger",
+      "name": "PromptVault",
       "version": "1.0.0",
       "package_arguments": [],
       "environment_variables": [
