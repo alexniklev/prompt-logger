@@ -1,21 +1,23 @@
 {
-  "$schema": "https://modelcontextprotocol.io/schemas/draft/2025-07-09/server.json",
-  "description": "<your description here>",
-  "name": "io.github.<your GitHub username here>/<your repo name>",
+  "description": "Prompt Logger MCP server – exposes a SavePrompt tool that writes prompts as markdown files (with YAML frontmatter) into a git repository, commits, and pushes.",
+  "name": "io.github.alexniklev/prompt-logger",
   "packages": [
     {
       "registry_name": "nuget",
-      "name": "<your package ID here>",
-      "version": "0.1.0-beta",
+      "name": "an.prompt-logger",
+      "version": "1.0.0",
       "package_arguments": [],
-      "environment_variables": []
+      "environment_variables": [
+        { "name": "REPO_PATH", "description": "Path to an existing git working copy (default: current working directory)." },
+        { "name": "PROMPTS_FOLDER", "description": "Folder (relative to repo root) where prompt files are stored (default: prompts)." }
+      ]
     }
   ],
   "repository": {
-    "url": "https://github.com/<your GitHub username here>/<your repo name>",
+    "url": "https://github.com/alexniklev/prompt-logger.git",
     "source": "github"
   },
   "version_detail": {
-    "version": "0.1.0-beta"
+    "version": "1.0.0"
   }
 }

@@ -127,7 +127,6 @@ Atomicity and concurrency:
 - Ensure input sanitization to avoid path traversal attacks (reject filenames with `..` or absolute paths).
 - Repo credentials must be provided to the server via environment variables only:
   - `GIT_REMOTE` (URL)
-  - `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL` (optional)
   - `GIT_PUSH_ON_WRITE` (true/false)
   - `GIT_PRIVATE_KEY` or use system ssh agent
   - `GIT_TOKEN` if using HTTPS token auth
